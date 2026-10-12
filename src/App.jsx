@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-const initialSlots = Array.from({ length: 24 }, (_, index) => ({
-  id: `P${String(index + 1).padStart(2, "0")}`,
-  occupied: [1, 4, 7, 10, 13, 16, 19, 22].includes(index),
-  vehicle: "",
-}));
+const initialSlots = [];
 
 const initialBookings = [];
 
