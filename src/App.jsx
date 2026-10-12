@@ -25,7 +25,7 @@ export default function App() {
   const [slots, setSlots] = useState(initialSlots);
   
 useEffect(() => {
-  fetch("http://localhost:8080/api/parking")
+  fetch("https://smartpark-backend-c77g.onrender.com/api/parking")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Failed to load parking slots");
