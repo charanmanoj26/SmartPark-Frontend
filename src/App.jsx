@@ -68,18 +68,43 @@ useEffect(() => {
     [slots, search]
   );
 
-  function bookParking() {
-    if (!vehicleNumber.trim() || !selectedSlot) {
-      setNotice("Enter a vehicle number and select an available slot.");
-      return;
+  async function bookParking() {
+  if (!vehicleNumber.trim() || !selectedSlot) {
+    setNotice("Enter a vehicle number and select an available slot.");
+    return;
+  }
+
+  const slot = slots.find((item) => item.id === selectedSlot);
+
+  if (!slot || slot.status !== "Available") {
+    setNotice("That parking slot is no longer available.");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+  `https://smartpark-backend-c77g.onrender.com/api/parking/${selectedSlot}/reserve`,
+  { method: "POST" }
+);
+
+    if (!response.ok) {
+      throw new Error("Reservation failed. The slot may no longer be available.");
     }
 
-    const slot = slots.find((item) => item.id === selectedSlot);
+    const updatedSlot = await response.json();
 
-    if (!slot || slot.occupied) {
-      setNotice("That parking slot is no longer available.");
-      return;
-    }
+    setSlots((current) =>
+      current.map((item) =>
+        item.id === selectedSlot
+          ? {
+              ...item,
+              occupied: updatedSlot.status !== "Available",
+              status: updatedSlot.status,
+              vehicle: vehicleNumber.trim().toUpperCase(),
+            }
+          : item
+      )
+    );
 
     const booking = {
       id: Date.now(),
@@ -88,19 +113,14 @@ useEffect(() => {
       time: new Date().toLocaleString(),
     };
 
-    setSlots((current) =>
-      current.map((item) =>
-        item.id === selectedSlot
-          ? { ...item, occupied: true, vehicle: booking.vehicle }
-          : item
-      )
-    );
-
     setBookings((current) => [booking, ...current]);
     setSelectedSlot("");
     setVehicleNumber("");
     setNotice(`Successfully booked ${booking.slot}.`);
+  } catch (error) {
+    setNotice(error.message);
   }
+}
 
   function cancelBooking(booking) {
     setSlots((current) =>
