@@ -20,33 +20,44 @@ function StatCard({ label, value, detail, color, icon }) {
 export default function App() {
   const [slots, setSlots] = useState(initialSlots);
   
-useEffect(() => {
-  fetch("https://smartpark-backend-c77g.onrender.com/api/parking")
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Failed to load parking slots");
-      }
-      return response.json();
-    })
-    .then((data) => {
-      console.log("Parking data:", data);
 
-      setSlots(
-        data.map((slot) => {
-          console.log("Slot status:", slot.slot, slot.status);
-          return {
+  useEffect(() => {
+    fetch("https://smartpark-backend-c77g.onrender.com/api/parking")
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load parking slots");
+        return response.json();
+      })
+      .then((data) => {
+        setSlots(
+          data.map((slot) => ({
             id: slot.slot,
             occupied: slot.status !== "Available",
-            vehicle: "",
+            vehicle: slot.vehicleNumber || "",
             status: slot.status,
-          };
-        })
-      );
-    })
-    .catch((error) => {
-      console.error("Parking API error:", error);
-    });
-}, []);
+          }))
+        );
+      })
+      .catch((error) => console.error("Parking API error:", error));
+  }, []);
+
+  useEffect(() => {
+    fetch("https://smartpark-backend-c77g.onrender.com/api/bookings")
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load bookings");
+        return response.json();
+      })
+      .then((data) => {
+        setBookings(
+          data.map((booking) => ({
+            id: booking.id,
+            slot: booking.slot,
+            vehicle: booking.vehicleNumber,
+            time: booking.bookingTime,
+          }))
+        );
+      })
+      .catch((error) => console.error("Bookings API error:", error));
+  }, []);
   const [bookings, setBookings] = useState(initialBookings);
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedSlot, setSelectedSlot] = useState("");
@@ -82,11 +93,11 @@ useEffect(() => {
   }
 
   try {
+    const vehicle = vehicleNumber.trim().toUpperCase();
     const response = await fetch(
-  `https://smartpark-backend-c77g.onrender.com/api/parking/${selectedSlot}/reserve`,
-  { method: "POST" }
-);
-
+      `https://smartpark-backend-c77g.onrender.com/api/parking/${encodeURIComponent(selectedSlot)}/reserve?vehicleNumber=${encodeURIComponent(vehicle)}`,
+      { method: "POST" }
+    );
     if (!response.ok) {
       throw new Error("Reservation failed. The slot may no longer be available.");
     }
@@ -122,22 +133,40 @@ useEffect(() => {
   }
 }
 
-  function cancelBooking(booking) {
-    setSlots((current) =>
-      current.map((slot) =>
-        slot.id === booking.slot
-          ? { ...slot, occupied: false, vehicle: "" }
-          : slot
-      )
-    );
+  
+  async function cancelBooking(booking) {
+    try {
+      const response = await fetch(
+        `https://smartpark-backend-c77g.onrender.com/api/bookings/${booking.id}/cancel`,
+        { method: "PUT" }
+      );
 
-    setBookings((current) =>
-      current.filter((item) => item.id !== booking.id)
-    );
+      if (!response.ok) {
+        throw new Error("Cancellation failed. Please try again.");
+      }
 
-    setNotice(`${booking.slot} is now available.`);
+      setBookings((current) =>
+        current.filter((item) => item.id !== booking.id)
+      );
+
+      setSlots((current) =>
+        current.map((slot) =>
+          slot.id === booking.slot
+            ? {
+                ...slot,
+                occupied: false,
+                vehicle: "",
+                status: "Available",
+              }
+            : slot
+        )
+      );
+
+      setNotice(`${booking.slot} is now available.`);
+    } catch (error) {
+      setNotice(error.message);
+    }
   }
-
   function changeTab(tab) {
     setActiveTab(tab);
     setNotice("");
